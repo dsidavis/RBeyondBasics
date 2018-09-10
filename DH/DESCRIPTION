@@ -1,0 +1,7 @@
+Package: DH
+Title: Example code and data from Dave Hernandez
+Description: Sample code with a loop to make faster.
+Version: 0.1-0
+License: BSD
+Maintainer: Duncan Temple Lang <duncan@r-project.org>
+Author: Duncan Temple Lang <duncan@r-project.org>

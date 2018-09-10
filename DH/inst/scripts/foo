@@ -1,0 +1,22 @@
+
+tmp = group_by(tidy_data, site, size, depth)
+tally(tmp)
+
+`%>%`(tidy_data, group_by(site,size, depth))
+    group_by(tidy_data, site,size, depth)
+
+    group_by(tidy_data, site,size, depth)
+
+tidy_data %>%  group_by(site, ., size, depth)
+
+tally(group_by(tidy_data, site, size, depth))
+
+
+
+mutate(tidy_data, normalized_CPUE = CPUE/site_total_CPUE)
+
+mutate(tidy_data, normalized_CPUE = CPUE/xsite_total_CPUE)
+
+ tidy_data$normalized_CPUE = tidy_data$CPUE/tidy_data$site_total_CPUE
+
+with( tidy_data, CPUE/site_total_CPUE)
