@@ -361,7 +361,133 @@ we generated.  So [funs3.R](funs3.R) extends funs2.R and does this.
 
 Now that we have changed the structure of simDataSaveSummaryList, we have to change the code in the
 next step.
+But let's look at the original code first.
 
+```
+results = list()
+results2 = list()
+
+for (i in 1:length(simDataSaveSummaryList)){ # the length of simDataSaveSummaryList will be 23 long, but within each list, there are 2000 cols
+  print(i)
+  for (j in 1:length(simDataSaveSummaryList[[i]])) { 
+    if (j %% 2 > 0){ # only want to take the mean (first, third, fifth....nth column in the dataframe)
+      output = try(t.test(simDataSaveSummaryList[[i]][,j], mu = .5), silent = TRUE)
+      if (inherits(output, "try-error")) # throws an error sometimes with smaller n, can't rememebr exactly what it said...but this code gets around an error.
+      {
+        cat(output) 
+        output <- NA
+      }
+      if (is.atomic(output) == TRUE) {
+          results[(j+1)/2] = NA
+	  } else { 
+          results[(j+1)/2] = output$p.value
+      }
+    } else {
+      next() 
+    }
+    results = as.data.frame(results)  
+    colnames(results) = paste(i+1, seq(1,j/2+1), sep = "_") # added i+1 to shift the n number forward one because our i loop starts at 2 above.
+    results2[[i]] = results
+  }# for i
+}
+```
+
+It is good to use seq(along = simDataSaveSummaryList) rather than 1:length(). This is in case
+length() is 0 and we end up with 1:0. But this is not important in this case as we are controlling
+the length of the list.
+
+Looping over each column of the i-th data frame and skipping the even ones (corresponding to the
+standard deviations) makes the code a little
+more complicated than it need be.  Instead, we can loop over c(1, 3, 5, ...).
+We compute this with
+```
+seq(1, ncol(simDataSaveSummaryList[[i]]) - 1, by = 2)
+```
+Alternatively, we could omit the SDs in the previous step.
+
+
+We still have to perform the gymnastics to compute the index for the results list.
+
+Note that results is a list. Since we are inserting p values (or NAs), this should probably be a
+numeric vector.
+If it is a list, we should use [[ ]] to insert a value, not [].
+Also, let's avoid computing the index in 2 places (DRY principle) 
+```
+results[[(j+1)/2]] = if (is.atomic(output) == TRUE) 
+                       NA 
+				     else 
+				       output$p.value
+```
+And we can do better than this by pre-populating results with NAs and
+only inserting the p value  if there is no error:
+```
+results = rep(NA, length(simDataSaveSummaryList[[i]])/2)
+
+
+      results[(j+1)/2] = if(!is.atomic(output)) output$p.value
+```
+
+
+But we can do even better than this by setting the value in
+the else-clause of `if(inherits(output, "try-error"))`, i.e.,
+
+```
+ output = try(t.test(simDataSaveSummaryList[[i]][,j], mu = .5), silent = TRUE)
+  if(inherits(output, "try-error")) # throws an error sometimes with smaller n, can't rememebr exactly what it said...but this code gets around an error.
+     cat(output) 
+  else
+     results[(j+1)/2] = output$p.value
+```
+
+Rather than explicitly writing the error message if an error occurs, I'd leave silent = FALSE and
+leave try() to display the message for us. Then we can omit the cat() and just handle the case when
+there is no error.
+
+
+So we might rewrite the code as
+```
+results = list()
+results2 = vector("list", length(simDataSaveSummaryList))
+
+for (i in seq(along = results2)){ # the length of simDataSaveSummaryList will be 23 long, but within each list, there are 2000 cols
+  print(i)
+  
+  for (j in seq(1, ncol(simDataSaveSummaryList[[i]]) - 1, by = 2)) { 
+      output = try(t.test(simDataSaveSummaryList[[i]][,j], mu = .5), silent = FALSE)
+      if (!inherits(output, "try-error")) # throws an error sometimes with smaller n, can't rememebr exactly what it said...but this code gets around an error.
+         results[(j+1)/2] = output$p.value
+   }
+   
+    results = as.data.frame(results)  
+    colnames(results) = paste(i+1, seq(1,j/2+1), sep = "_") # added i+1 to shift the n number forward one because our i loop starts at 2 above.
+    results2[[i]] = results
+  }# for i  #!!!!!!!!!!!!! NOTE THIS IS FOR j
+}
+```
+
+
+Defining, allocating the results vector and inserting the value in each iteration is more complex
+than using sapply.
+So we can replace the inner loop (over j) with
+```
+  j = seq(1, ncol(simDataSaveSummaryList[[i]]) - 1, by = 2)
+  results = sapply(simDataSaveSummaryList[[i]][j],
+                   function(col)
+                       tryCatch(t.test(col, mu = .5)$p.value, error = function(...) NA))
+```
+Better yet, we can put this into a functio
+```
+doTTests =
+function(x)
+  sapply(x[seq(1, ncol(x) - 1, by = 2)],
+         function(col)
+             tryCatch(t.test(col, mu = .5), error = function(...) NA))
+```
+
+Then we can use this in the outer loop as
+```
+results2n = lapply(simDataSaveSummaryList, doTTests)
+```
 
 
 

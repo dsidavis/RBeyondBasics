@@ -88,7 +88,7 @@ head(t(results2))
 # 4. make the data long & rearrange ########################################
 
 # make the data long/rearrage
-long.p.values <- gather(results2, colName, p.value, X2_1:X24_1000, factor_key=TRUE)
+
 # head(long.p.values) check
 long.p.values %>% separate(colName, c("sampleSize", "iter"), sep = "_") -> long.p.values # separate the colName column into two columns
 long.p.values$sampleSize <- gsub('\\X', '', long.p.values$sampleSize) # replace "X" with nothing
