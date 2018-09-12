@@ -293,7 +293,76 @@ names(simDataSaveSummaryList[[1]])
 Is this what you were expecting?
 The names are suboptimal.
 
-The way I think about the
+The way I think about this is: 
+each element of simDataSaveSummary 
++ is a data.frame (or matrix in our doSim() function)
++ with 2 columns (mean and sd)
++ with i rows.
+
+So let's rbind them together.
+This is another case of using do.call.
+```
+do.call(rbind, simDataSaveSummary)
+```
+Then we can assign this to 
+```
+simDataSaveSummaryList[[i-1]]
+```
+or in the lapply() we introduced to replace the loop over i, 
+```
+simDataSaveSummaryList = lapply(2:24, function(i) do.call(rbind, doSim(i)))
+```
+
+Alternatively, we can have our doSim() function perform the rbind().
+We'll make this optional. See [funs1.5.R](funs1.5.R).
+Then we can use this with
+```
+simDataSaveSummaryList = lapply(2:24, doSim, bind = TRUE)
+```
+
+Before we run this lapply() call, we need to check doSim() does what we expect.
+
+
+# 
+
+Before we move on to the next step, let's think about our doSim() function.
+Since we now end up with a matrix with 2 columns (meand and sd) and 1000 * `i` rows,
+we might think about possibly better ways to compute the same result.
+In each of the 1000 iterations, we generate a sample and  compute the row mean and sd.
+The samples are from the same distribution.
+So instead of generating 1 sample of size `i` `N` times, we can generate 1 sample of size `i*N`.
+Then we can compute the mean and sd of each row.
+See [funs2.R](funs2.R).
+
+This avoids an extra loop performed via the replicate() call. This means we have vectorized the
+computations. This should make them faster.
+
+Note that we don't need the bind = TRUE argument in this case as the result is a matrix.
+If we don't add to the function, we cannot quickly swap between the different versions of doSim()
+as code that calls one version with bind won't work with a version that doesn't have bind.
+So we might add a bind parameter and just not use it in the function.
+
+
+QUESTION: Do we need to use byrow = TRUE in the call to `matrix(rbeta(), byrow = TRUE)`?
+
+
+# Adding the Observation Number
+
+It doesn't necessarily matter in this simulation, but it can be useful
+to add a column that identifies the observation number within each of the N (1000) samples 
+we generated.  So [funs3.R](funs3.R) extends funs2.R and does this.
+
+
+
+
+
+## Stage 2
+
+
+Now that we have changed the structure of simDataSaveSummaryList, we have to change the code in the
+next step.
+
+
 
 
 
