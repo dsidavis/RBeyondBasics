@@ -6,5 +6,5 @@ function(i, alpha = 1, beta = 1, N = 1000, verbose = TRUE)
 
     simData <- matrix(rbeta(n = N*i*16, shape1 = alpha, shape2 = beta), N*i, 16) # simulate data (16 trials per participant)  
     ans = t(apply(simData, 1, function(x) c(mean = mean(x, na.rm = TRUE), sd = sd(x, na.rm = TRUE))) )
-    cbind(ans, obs = rep(1:N, each = i))
+    cbind(ans, obs = rep(1:N, i), sampleSize = rep(i, N*i))
 }
