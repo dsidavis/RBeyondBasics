@@ -205,6 +205,7 @@ GetBoxes.character =
 function(obj, level = 3L, keepConfidence = TRUE, asMatrix = FALSE, ...) 
 {
     ans = .Call("R_TesseractBaseAPI_getBoundingBoxes", obj, as(level, "PageIteratorLevel"))
+
     m = do.call(rbind, ans)
     colnames(m) = c("confidence", "left", "bottom", "right", "top") #XXXX
     if(asMatrix) {
@@ -224,11 +225,97 @@ function(obj, level = 3L, keepConfidence = TRUE, asMatrix = FALSE, ...)
 }
 ```
 
+Our final method is for a Pix object.
+The Rtesseract package provides functionality for setting the current Pix object
+for an existing TesseractAPI object. So we can implement GetBoxes.Pix
+by creating a TesseractAPI object, setting the Pix and then calling GetBoxes on
+the TesseractAPI object, i.e.,
+```
+GetBoxes.character =
+function(obj, level = 3L, keepConfidence = TRUE, asMatrix = FALSE, ...) 
+{
+    tess = tesseract(...)
+	SetImage(tess, obj)
+	GetBoxes(tess, level, keepConfidence, asMatrix)
+}
+```
+
+
+
+
+# Extensibility
+Now suppose we wanted to create a method for GetBoxes that took a 3-dimensional
+array representing an image, e.g., as read via the readPNG() function in the png package.
+If we had written GetBoxes() using the if-else statements, we would have to either
++ change the original function and retest it all, or 
++ have the users call a new function, e.g. GetBoxes.array.
+However, with our GetBoxes generic function, we can define
+GetBoxes.array and the generic will find and use it when appropriate.
+(There are very minor details with exporting this as an S3 method when it is defined in a package,
+but not when using source() or defining it interactively.)
+If we assume that there is a method for coercing an array to a Pix, we can implement
+our GetBoxes.array method as
+```
+GetBoxes.array =
+function(obj, level = 3L, keepConfidence = TRUE, asMatrix = FALSE, ...) 
+{
+   pix = as(obj, "Pix")
+   GetBoxes(pix, level, keepConfidence, asMatrix, ...)
+}
+```
+
+
+# Another Aspect of Extensibility 
+
+In addition to being able to add new methods for different types without changing any existing
+code, we can also introduce new class vectors. 
+Consider what GetBoxes returns - an object of class `c("OCRResults", "data.frame")`.
+An object of this class is an OCRResults instance and also a data.frame instance.
+What this means is that the UseMethod("plot") call, for example, in a generic function will look
+for, in turn, the methods named
++ plot.OCRResults
++ plot.data.frame
++ plot.default
+Whenever it finds one of these, it calls that and ends the generic.
+
+What this means is that we can provide more specific methods for OCRResults, but still inherit the
+methods for data.frame.
+
+Similarly, we can augment the class with, e.g.,
+```
+class(b) = c("MyOCRResults", "OCRResults", "data.frame")
+```
+(or better, `class(b) = c("MyOCRResults", class(b))`)
+and then define a method for plot.MyOCRResults.
+That method will then be used when we call `plot(b)`
+or for any other instance of MyOCRResults.
+And that method can use plot.OCRResults and/or plot.data.frame or
+any other functions and methods.
+
+Again, we haven't had to change any existing code to add new features
+and change the behavior of how our overall code works.
+This makes for stable code.
 
 
 # Coercion
+<!-- coercion from array to pix -->
 
-coercion from array to pix
+We can write a function to convert one object to a different type,
+for example, arrayToPix.  Then the user can invoke that.
+We can also register this function for use in the simpler as() S4 function,
+i.e. as an S4 method for as().
+We do this with
+```
+setAs("array", "Pix", function(from) ....)
+```
+The ... call code to convert the value in `from` to the target class (Pix) and returns an instance
+of the class.
+
+When one of the classes is not a formal S4 defined class, we use setOldClass,
+e.g.,
+```
+setOldClass("array")
+```
 
 
 
